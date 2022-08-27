@@ -80,7 +80,7 @@ def df_to_words_list(data):
     return words
 
 
-def plot_top_n_bigrams_hist(text, stop_words, n, plot_non_stopwords=False):
+def plot_top_n_bigrams_hist(text, stop_words, n, plot_non_stopwords=False, print_words=True):
     """
     Plot a histogram of the n most common non-stopwords in the df.
     """
@@ -88,7 +88,8 @@ def plot_top_n_bigrams_hist(text, stop_words, n, plot_non_stopwords=False):
     text = df_to_words_list(text)
     title = f'Top {n} bigrams in corpus'
     top_bigrams = get_top_ngram(text, 2)
-    print([(x[::-1],y) for x,y in top_bigrams])
+    if print_words:
+        print([(x[::-1],y) for x,y in top_bigrams])
     x, y = [], []
     for bigram, count in top_bigrams:
         word1, word2 = bigram.split(" ")
