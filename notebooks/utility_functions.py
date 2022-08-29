@@ -3,10 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import Counter
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 import gensim
+import pickle
 from gensim.test.utils import datapath
-
+from sklearn.model_selection import cross_validate
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, accuracy_score, ConfusionMatrixDisplay
 
 def get_stopwords() -> set[str]:
     """
@@ -203,3 +205,71 @@ def create_corpus(csv_path):
     dic = gensim.corpora.Dictionary(corpus)
     bow_corpus = [dic.doc2bow(doc) for doc in corpus]
     return corpus_orig, dic, bow_corpus
+
+def vectorize(X_train, X_test, vectorization_type):
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+
+        heb_stop_words = get_stopwords()
+        count_vectorizer = CountVectorizer(stop_words=heb_stop_words, ngram_range=(1, 2))
+        X_train_counts = count_vectorizer.fit_transform(X_train)
+        X_test_counts = count_vectorizer.transform(X_test)
+
+        if vectorization_type == 'simple_counts':
+            quotes, words = X_train_counts.shape
+            print(f"simple counts: {quotes} quotes, {words} words in train set")
+            return X_train_counts, X_test_counts
+
+        if vectorization_type == 'tfidf':
+            transformer = TfidfTransformer(use_idf=False).fit(X_train_counts)
+            X_train_tfidf = transformer.transform(X_train_counts)
+            X_test_tfidf = transformer.transform(X_test_counts)
+            quotes, words = X_train_tfidf.shape
+            print(f"TFIDF: {quotes} quotes, {words} words in train set")
+            return X_train_tfidf, X_test_tfidf
+
+def cross_validate_and_save_model(model, X_train_data, y_train_data, X_test_data, kf, scoring, name):
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+
+        # cross validation:
+        scores = cross_validate(model, X=X_train_data, y=y_train_data, cv=kf, scoring=scoring)
+        print(f"cross validation scores (5fold) for {name}:")
+        for score in scoring:
+            print(f"{score}: {scores['test_'+score].mean()}")
+
+        # train and predict on entire train dataset:
+        clf = model.fit(X_train_data, y_train_data)
+        predicted = pd.DataFrame(clf.predict(X_test_data)).rename(columns={0: 'predicted'})
+
+        # save model and predictions:
+        pickle.dump(model, open(f"../models/{name}.pkl", 'wb'))
+        predicted.to_csv(f'../models/predictions/{name}.csv')
+        return model, predicted
+
+def evaluate(title,true_labels,predicted_labels):
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        print(title)
+        prec_mic=precision_score(true_labels, predicted_labels, average="micro")
+        rec_mic=recall_score(true_labels, predicted_labels, average="micro")
+        f1_mic=f1_score(true_labels, predicted_labels, average="micro")
+        print(f"Micro:\nprecision: {prec_mic}\nrecall: {rec_mic}\nf1: {f1_mic}\n")
+
+        prec_mac=precision_score(true_labels, predicted_labels, average="macro")
+        rec_mac=recall_score(true_labels, predicted_labels,average="macro")
+        f1_mac=f1_score(true_labels, predicted_labels, average="macro")
+        print(f"Macro:\nprecision: {prec_mac}\nrecall: {rec_mac}\nf1: {f1_mac}\n")
+
+
+        acc=accuracy_score(true_labels, predicted_labels)
+        print(f"Accuracy: {acc}\n")
+
+        cm=confusion_matrix(true_labels, predicted_labels)
+        labels = [label[::-1] for label in ['קורונה','נשים','בלי','בריאות','כלכלי','בטחון פנים','חינוך','רווחה','בטחון']]
+        cmd = ConfusionMatrixDisplay(cm, display_labels=labels)
+        print("Confusion Matrix:")
+        cmd.plot(xticks_rotation=90, cmap="YlGn")
