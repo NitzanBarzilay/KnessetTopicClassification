@@ -229,7 +229,7 @@ def vectorize(X_train, X_test, vectorization_type):
             print(f"TFIDF: {quotes} quotes, {words} words in train set")
             return X_train_tfidf, X_test_tfidf
 
-def cross_validate_and_save_model(model, X_train_data, y_train_data, X_test_data, kf, scoring, name):
+def cross_validate_and_save_model(model, X_train_data, y_train_data, X_test_data, kf, scoring, name, phase=1):
     import warnings
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -244,12 +244,12 @@ def cross_validate_and_save_model(model, X_train_data, y_train_data, X_test_data
         clf = model.fit(X_train_data, y_train_data)
         predicted = pd.DataFrame(clf.predict(X_test_data)).rename(columns={0: 'predicted'})
 
-        # save model and predictions:
-        pickle.dump(model, open(f"../models/{name}.pkl", 'wb'))
-        predicted.to_csv(f'../models/predictions/{name}.csv')
+        # save model and phase1_predictions:
+        pickle.dump(model, open(f"../models/phase{phase}_models/{name}.pkl", 'wb'))
+        predicted.to_csv(f'../models/phase{phase}_predictions/{name}.csv')
         return model, predicted
 
-def evaluate(title,true_labels,predicted_labels):
+def evaluate(title,true_labels,predicted_labels, mat_tags):
     import warnings
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -269,7 +269,21 @@ def evaluate(title,true_labels,predicted_labels):
         print(f"Accuracy: {acc}\n")
 
         cm=confusion_matrix(true_labels, predicted_labels)
-        labels = [label[::-1] for label in ['קורונה','נשים','בלי','בריאות','כלכלי','בטחון פנים','חינוך','רווחה','בטחון']]
+        labels = [label[::-1] for label in mat_tags]
         cmd = ConfusionMatrixDisplay(cm, display_labels=labels)
         print("Confusion Matrix:")
         cmd.plot(xticks_rotation=90, cmap="YlGn")
+
+def get_confused_samples(quotes,predicted):
+    quotes = quotes.copy()
+    quotes['predicted'] = predicted
+    confused = quotes[quotes['true'] != quotes['predicted']]
+
+    total = len(confused)
+    predicted_none = len(confused[confused['predicted']== 'בלי'])
+
+    print("\n--------- confusion analysis----------")
+    print(f"misclassified as no topic: {predicted_none} of {total} ({predicted_none/total*100}%)\n")
+    print("Distribution of misclassified topics:")
+    print(confused['predicted'].value_counts())
+    return confused
