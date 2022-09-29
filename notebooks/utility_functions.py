@@ -229,7 +229,7 @@ def vectorize(X_train, X_test, vectorization_type):
             print(f"TFIDF: {quotes} quotes, {words} words in train set")
             return X_train_tfidf, X_test_tfidf
 
-def cross_validate_and_save_model(model, X_train_data, y_train_data, X_test_data, kf, scoring, name, phase=1):
+def cross_validate_and_save_model(model, X_train_data, y_train_data, X_test_data, kf, scoring, name, phase=1, proba=False):
     import warnings
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -247,6 +247,11 @@ def cross_validate_and_save_model(model, X_train_data, y_train_data, X_test_data
         # save model and phase1_predictions:
         pickle.dump(model, open(f"../models/phase{phase}_models/{name}.pkl", 'wb'))
         predicted.to_csv(f'../models/phase{phase}_predictions/{name}.csv')
+
+        if proba:
+            predicted_proba = pd.DataFrame(clf.predict_proba(X_test_data)).rename(
+                columns={i: label for i, label in enumerate(list(clf.classes_))})
+            return model, predicted, predicted_proba
         return model, predicted
 
 def evaluate(title,true_labels,predicted_labels, mat_tags):
@@ -274,7 +279,7 @@ def evaluate(title,true_labels,predicted_labels, mat_tags):
         print("Confusion Matrix:")
         cmd.plot(xticks_rotation=90, cmap="YlGn")
 
-def get_confused_samples(quotes,predicted):
+def get_confused_samples(quotes,predicted, proba=None):
     quotes = quotes.copy()
     quotes['predicted'] = predicted
     confused = quotes[quotes['true'] != quotes['predicted']]
@@ -287,3 +292,10 @@ def get_confused_samples(quotes,predicted):
     print("Distribution of misclassified topics:")
     print(confused['predicted'].value_counts())
     return confused
+
+def get_tag_and_prob(predicted_proba,y_test):
+    predicted_proba = predicted_proba.copy()
+    predicted_proba['max_prob'] = predicted_proba.max(axis=1)
+    predicted_proba['Tag'] = predicted_proba.idxmax(axis=1)
+    predicted_proba['true'] = y_test
+    return predicted_proba[['Tag', 'max_prob', 'true']]
