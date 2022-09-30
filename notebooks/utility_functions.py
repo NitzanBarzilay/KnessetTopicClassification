@@ -6,7 +6,6 @@ from collections import Counter
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 import gensim
 import pickle
-from gensim.test.utils import datapath
 from sklearn.model_selection import cross_validate
 from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, accuracy_score, ConfusionMatrixDisplay
 
@@ -75,6 +74,9 @@ def get_top_ngram(corpus, n=None):
     return words_freq
 
 def df_to_words_list(data):
+    """
+    Returns a list of all words in given dataframe.
+    """
     words_lists = [text.split() for text in data]
     words = []
     for words_list in words_lists:
@@ -128,6 +130,9 @@ def plot_text_length_histogram(df):
     plt.show()
 
 def get_relevant_speakers(df: pd.DataFrame):
+    """
+    Returns a list of the relevant speakers (parliment memebers) in the df.
+    """
     relevant_speakers = []
     irrelevant_speakers = ['מזכירת הכנסת ירדנה מלר-הורביץ:', ' << דובר_המשך >>', 'קצרנית פרלמנטרית:',
                            'אתי בן-יוסף:', 'מנהלת הוועדה:']
@@ -142,11 +147,17 @@ def get_relevant_speakers(df: pd.DataFrame):
     return relevant_speakers, irrelevant_speakers
 
 def get_non_stop_words(df):
+    """
+    Returns a list of all non-stopwords in given corpus.
+    """
     stopwords = get_stopwords()
     return ' '.join([w for w in df.split() if w not in stopwords])
 
 
 def get_lda_objects(non_stop_text):
+    """
+    Returns a list of LDA objects, each with a different number of topics.
+    """
     def _preprocess_text(non_stop_text):
         corpus = []
         for news in non_stop_text:
@@ -166,18 +177,24 @@ def get_lda_objects(non_stop_text):
 
 
 def show_topics(a, vocab, n_top_topics=10):
+    """
+    Show the top n_top_topics words in each topic.
+    """
     top_words = lambda t: [vocab[i] for i in np.argsort(t)[:-n_top_topics-1:-1]]
     topic_words = ([top_words(t) for t in a])
     return [' '.join(t) for t in topic_words]
 
 
-def create_lda_model(dic, bow_corpus, topic_num, trial_num):
-    # crate LDA model
+def create_lda_model(dic, bow_corpus, topic_num):
+    """ crates an LDA model"""
     lda_model = gensim.models.LdaMulticore(bow_corpus, num_topics=topic_num, id2word=dic,
                                            passes=10, workers=2)
     return lda_model
 
 def create_lda_topic_dict(lda_model, topic_num):
+    """
+    create a dictionary of the topics and their words for given lda model.
+    """
     topics_from_lda = lda_model.show_topics(num_topics=topic_num)
     topics_from_lda.sort(key=lambda x: x[0])
     lda_topic_dict = {topic[0]: topic[1:] for topic in topics_from_lda}
@@ -186,6 +203,9 @@ def create_lda_topic_dict(lda_model, topic_num):
     return lda_topic_dict
 
 def create_tag_df(lda_model, bow_corpus, corpus_orig, manual_topic_dict, lda_topic_dict, batch_num):
+    """
+    Create a dataframe with the topics and the text.
+    """
     tag_df = pd.DataFrame(columns=['NonStopwordsQuoteText', 'Topic', 'Topic_Prob', 'TopicWords'])
     for i in range(len(bow_corpus)):
         top_topics = lda_model.get_document_topics(bow_corpus[i])
@@ -199,6 +219,9 @@ def create_tag_df(lda_model, bow_corpus, corpus_orig, manual_topic_dict, lda_top
     return tag_df
 
 def create_corpus(csv_path):
+    """
+    Create a corpus from a csv file.
+    """
     samples = pd.read_csv(csv_path)
     corpus = [row.split() for row in samples['NonStopwordsQuoteText'].to_list()]
     corpus_orig = [row for row in samples['NonStopwordsQuoteText'].to_list()]
@@ -207,6 +230,9 @@ def create_corpus(csv_path):
     return corpus_orig, dic, bow_corpus
 
 def vectorize(X_train, X_test, vectorization_type):
+    """
+    Vectorize the text data using given vectorization type.
+    """
     import warnings
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -230,6 +256,10 @@ def vectorize(X_train, X_test, vectorization_type):
             return X_train_tfidf, X_test_tfidf
 
 def cross_validate_and_save_model(model, X_train_data, y_train_data, X_test_data, kf, scoring, name, phase=1, proba=False):
+    """
+    Cross validates and saves model
+    :return:
+    """
     import warnings
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -255,6 +285,9 @@ def cross_validate_and_save_model(model, X_train_data, y_train_data, X_test_data
         return model, predicted
 
 def evaluate(title,true_labels,predicted_labels, mat_tags):
+    """
+    Evaluate the model - print the confusion matrix and metrics (accuracy, precision, recall, f1) micro & macro
+    """
     import warnings
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -279,7 +312,13 @@ def evaluate(title,true_labels,predicted_labels, mat_tags):
         print("Confusion Matrix:")
         cmd.plot(xticks_rotation=90, cmap="YlGn")
 
-def get_confused_samples(quotes,predicted, proba=None):
+def get_confused_samples(quotes,predicted):
+    """
+    Gets the quotes that were predicted to be in a different topic than their true topic
+    :param quotes: DF that contains a "Tag" column with the true labels
+    :param predicted: DF of predicted labels for said quotes
+    :return: a DF with3 columns - Tag (the predicted label), max_prob (the probability of the ), and Confused (the actual label)
+    """
     quotes = quotes.copy()
     quotes['predicted'] = predicted
     confused = quotes[quotes['true'] != quotes['predicted']]
@@ -294,6 +333,9 @@ def get_confused_samples(quotes,predicted, proba=None):
     return confused
 
 def get_tag_and_prob(predicted_proba,y_test):
+    """
+    Gets the predicted tag and the probability of that tag
+    """
     predicted_proba = predicted_proba.copy()
     predicted_proba['max_prob'] = predicted_proba.max(axis=1)
     predicted_proba['Tag'] = predicted_proba.idxmax(axis=1)
