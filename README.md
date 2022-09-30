@@ -30,7 +30,7 @@ PreprocessedData.zip](https://github.com/NitzanBarzilay/KnessetTopicClassificati
 
 ## קוד
 בתיקיית notebooks תוכלו למצוא מחברות המציגות את תהליך המחקר באופן כרונולוגי לפי שלבים, מניתוח הדאטא הראשוני, דרך התיוג האוטומטי ועד לבנית והערכת מודל הקלסיפיקציה.
-באותה התיקיה תוכלו למצוא גם קובץ utility המכיל פונקציות שימושיות בהן נעשה שימוש כדי לנקות את הדאטא וכדי לאמן ולהעריך את המודלים. 
+באותה התיקיה תוכלו למצוא גם קובץ utility המכיל פונקציות שימושיות בהן נעשה שימוש כדי לנקות את הדאטא וכדי לאמן ולהעריך את המודלים השמור [בניתוב הבא] (https://github.com/NitzanBarzilay/KnessetTopicClassification/blob/main/notebooks/utility_functions.py) 
 
 
 ## יצירת קשר
